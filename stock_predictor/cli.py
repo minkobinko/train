@@ -10,6 +10,11 @@ def parse_args() -> Config:
     p.add_argument("--data-dir", default="data")
     p.add_argument("--cache-dir", default=".cache")
     p.add_argument("--output-dir", default="outputs")
+    p.add_argument("--auto-download-data", action="store_true", dest="auto_download_data")
+    p.add_argument("--no-auto-download-data", action="store_false", dest="auto_download_data")
+    p.set_defaults(auto_download_data=True)
+    p.add_argument("--download-start-date", default="2000-01-01")
+    p.add_argument("--refresh-downloaded-features", action="store_true")
 
     p.add_argument("--sequence-length", type=int, default=90)
     p.add_argument("--sequence-stride", type=int, default=1)

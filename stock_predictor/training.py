@@ -60,7 +60,9 @@ class Trainer:
             train_loss = 0.0
             opt.zero_grad(set_to_none=True)
 
+            step_count = 0
             for step, (xb, yb, sb) in enumerate(train_loader):
+                step_count += 1
                 xb, yb, sb = xb.to(device), yb.to(device), sb.to(device)
                 with torch.cuda.amp.autocast(enabled=(self.cfg.mixed_precision and device.type == "cuda")):
                     logits = model(xb, sb)
@@ -74,6 +76,12 @@ class Trainer:
                     opt.zero_grad(set_to_none=True)
 
                 train_loss += loss.item() * self.cfg.gradient_accumulation_steps
+
+            # Flush leftover accumulated gradients for the last partial micro-batch group.
+            if step_count > 0 and (step_count % self.cfg.gradient_accumulation_steps) != 0:
+                scaler.step(opt)
+                scaler.update()
+                opt.zero_grad(set_to_none=True)
 
             val_loss = float("nan")
             if val_loader is not None and len(val_loader) > 0:
