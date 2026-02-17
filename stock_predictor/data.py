@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Sequence
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 import numpy as np
 import pandas as pd
@@ -29,11 +32,47 @@ class DataBootstrapper:
 
     @staticmethod
     def _get_sp500_tickers() -> List[str]:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-        if not tables:
-            raise RuntimeError("Unable to fetch S&P 500 constituents from Wikipedia.")
-        tickers = tables[0]["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist()
-        return sorted(set(tickers))
+        user_agent = (
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        )
+
+        sources = [
+            ("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", "Symbol"),
+            ("https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv", "Symbol"),
+        ]
+
+        for url, symbol_col in sources:
+            try:
+                req = Request(url, headers={"User-Agent": user_agent})
+                with urlopen(req, timeout=30) as response:
+                    content = response.read().decode("utf-8", errors="replace")
+
+                if url.endswith(".csv"):
+                    table = pd.read_csv(StringIO(content))
+                    tables = [table]
+                else:
+                    tables = pd.read_html(StringIO(content))
+
+                if not tables:
+                    continue
+
+                first = tables[0]
+                if symbol_col not in first.columns:
+                    continue
+
+                tickers = first[symbol_col].astype(str).str.replace(".", "-", regex=False).tolist()
+                tickers = sorted(set(tickers))
+                if tickers:
+                    return tickers
+            except (HTTPError, URLError, TimeoutError, ValueError):
+                continue
+
+        raise RuntimeError(
+            "Unable to fetch S&P 500 constituents from configured public sources. "
+            "Check internet access/proxy settings or provide local CSVs with --no-auto-download-data."
+        )
 
     @staticmethod
     def _normalize_download(df: pd.DataFrame) -> pd.DataFrame:
