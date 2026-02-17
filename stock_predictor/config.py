@@ -9,10 +9,6 @@ class Config:
     cache_dir: str = ".cache"
     output_dir: str = "outputs"
 
-    auto_download_data: bool = True
-    download_start_date: str = "2000-01-01"
-    refresh_downloaded_features: bool = False
-
     sequence_length: int = 90
     sequence_stride: int = 1
     min_return_threshold: float = 0.05

@@ -25,11 +25,7 @@ def save_metrics(path: Path, metrics: Dict[str, Dict[str, float]]) -> None:
 def run_pipeline(cfg: Config) -> Dict[str, Dict[str, float]]:
     set_seed(cfg.seed)
 
-    tables = MarketDataLoader(
-        Path(cfg.data_dir),
-        auto_download_data=cfg.auto_download_data,
-        download_start_date=cfg.download_start_date,
-    ).load(refresh_downloaded_features=cfg.refresh_downloaded_features)
+    tables = MarketDataLoader(Path(cfg.data_dir)).load()
     features_df = FeatureBuilder(cfg).build(tables)
     feature_cols = get_feature_columns(features_df)
 
