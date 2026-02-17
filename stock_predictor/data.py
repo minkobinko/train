@@ -77,7 +77,26 @@ class DataBootstrapper:
     @staticmethod
     def _normalize_download(df: pd.DataFrame) -> pd.DataFrame:
         if isinstance(df.columns, pd.MultiIndex):
-            df = df.stack(level=1).reset_index().rename(columns={"level_1": "symbol"})
+            level_values = [set(df.columns.get_level_values(i)) for i in range(df.columns.nlevels)]
+            price_fields = {"Open", "High", "Low", "Close", "Adj Close", "Volume"}
+
+            # yfinance can return either:
+            # - columns=(field, ticker) when multiple tickers are downloaded
+            # - columns=(ticker, field) depending on version/options
+            if price_fields.intersection(level_values[0]):
+                stacked = df.stack(level=1)
+            elif df.columns.nlevels > 1 and price_fields.intersection(level_values[1]):
+                stacked = df.stack(level=0)
+            else:
+                raise ValueError("Unable to infer ticker level from downloaded multi-index columns")
+
+            df = stacked.reset_index()
+            ticker_level_name = stacked.index.names[-1]
+            if ticker_level_name is None and "level_1" in df.columns:
+                ticker_level_name = "level_1"
+            if ticker_level_name not in df.columns:
+                raise ValueError("Unable to locate ticker column after stacking downloaded data")
+            df = df.rename(columns={ticker_level_name: "symbol"})
         else:
             df = df.reset_index()
             if "symbol" not in df.columns:
