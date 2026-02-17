@@ -8,6 +8,9 @@ A modular, leakage-aware research program for training a **single model over an 
 - `stock_transformer.py` — alternative thin entrypoint.
 - `stock_predictor/config.py` — configuration + horizon definitions.
 - `stock_predictor/data.py` — data loading + automatic data bootstrap.
+- `stock_transformer.py` — thin entrypoint.
+- `stock_predictor/config.py` — configuration + horizon definitions.
+- `stock_predictor/data.py` — data loading for prices/universe/macro/sentiment/insider.
 - `stock_predictor/features.py` — point-in-time feature engineering + labels.
 - `stock_predictor/windows.py` — rolling window generation + cache.
 - `stock_predictor/splits.py` — purged k-fold and walk-forward split logic.
@@ -40,6 +43,18 @@ If files are missing, the program now bootstraps **all major inputs automaticall
    - momentum/volume context features
 
 This gives you a broad feature base with no manual CSV prep required.
+## Highlights
+
+- Multi-asset training (S&P 500 and broader universe support).
+- Multi-source features: price/volume, macro, sentiment, insider.
+- Multi-horizon targets: `1w, 1m, 2m, 3m, 4m, 5m, 6m`.
+- 90-day windows with 1-day stride.
+- Walk-forward evaluation from `2023-01-01` to present by rolling time blocks.
+- Purged + embargoed fold construction for overlap-aware CV.
+- Point-in-time universe membership filtering for survivorship-bias management.
+- Cached window datasets for speed.
+- Crash-resumable checkpoints per walk-forward split.
+- Trade simulation with min adjusted probability, expected-edge filtering, stop-loss/take-profit, and costs.
 
 ## Install
 
@@ -48,6 +63,21 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Data layout
+
+Required:
+
+- `data/prices.csv` columns: `date,symbol,open,high,low,close,adj_close,volume`
+- `data/universe_membership.csv` columns: `date,symbol,is_active`
+
+Optional:
+
+- `data/macro.csv` (`date,feature...`)
+- `data/sentiment.csv` (`date,symbol,feature...`)
+- `data/insider.csv` (`date,symbol,feature...`)
+
+All joins are point-in-time on `date` and (where relevant) `symbol`.
 
 ## Run (directly from a `.py` file, no compile step)
 
@@ -69,6 +99,10 @@ To disable auto-download and require local CSVs:
 
 ```bash
 python run_stock_predictor.py --no-auto-download-data
+Alternative entrypoint (same behavior):
+
+```bash
+python stock_transformer.py ...
 ```
 
 ## Leakage controls implemented
